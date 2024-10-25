@@ -299,17 +299,6 @@ func play_library(library Library) error {
 
 			}
 		}
-
-		// progress_bar_done := make(chan bool)
-		// // restart_loop := make(chan bool)
-		// quit_program := make(chan bool)
-		// quit_input := make(chan bool)
-
-		// pause := make(chan bool)
-		// skip := make(chan bool)
-		// back := make(chan bool)
-		// restart := make(chan bool)
-
 	}
 	fmt.Println("Done")
 
@@ -396,9 +385,7 @@ func main() {
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-	} else {
-		os.Exit(1)
 	}
-	os.Exit(0)
 
+	os.Exit(0)
 }
