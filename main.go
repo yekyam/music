@@ -264,6 +264,7 @@ func play_library(library Library) error {
 		for {
 			select {
 			case <-pause:
+
 				speaker.Lock()
 				ctrl.Paused = !ctrl.Paused
 
@@ -288,7 +289,6 @@ func play_library(library Library) error {
 				break inner
 			case <-back:
 
-				fmt.Println()
 				if i != 0 {
 					speaker.Clear()
 					i--
