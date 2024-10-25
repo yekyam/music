@@ -146,6 +146,24 @@ func play_library(library Library) error {
 
 	rand.Shuffle(len(library.Songs), func(i, j int) { library.Songs[i], library.Songs[j] = library.Songs[j], library.Songs[i] })
 
+	progress_bar_done := make(chan bool, 1)
+	// restart_loop := make(chan bool)
+	quit_program := make(chan bool, 1)
+	quit_input := make(chan bool, 1)
+
+	pause := make(chan bool, 1)
+	skip := make(chan bool, 1)
+	back := make(chan bool, 1)
+	restart := make(chan bool, 1)
+
+	defer close(progress_bar_done)
+	defer close(quit_program)
+	defer close(quit_input)
+	defer close(pause)
+	defer close(skip)
+	defer close(back)
+	defer close(restart)
+
 	for i := 0; i < len(library.Songs); i++ {
 
 		v := library.Songs[i]
@@ -169,18 +187,20 @@ func play_library(library Library) error {
 		ctrl := &beep.Ctrl{Streamer: beep.Loop(1, streamer), Paused: false}
 		speaker.Play(ctrl)
 
-		fmt.Println("Now playing: " + v.Song_name + "\n")
-		quit := make(chan bool)
-		// pause := make(chan bool)
-		// ready := make(chan bool)
+		quit_progressbar := make(chan bool)
 
 		// goroutine for progress bar
 		go func() {
 			bar := progressbar.Default(total_seconds, v.Song_name)
 			for {
 
+				if bar.State().CurrentNum == bar.State().Max {
+					progress_bar_done <- true
+					return
+				}
+
 				select {
-				case <-quit:
+				case <-quit_progressbar:
 					return
 				case <-time.After(time.Second):
 					if !ctrl.Paused {
@@ -191,71 +211,105 @@ func play_library(library Library) error {
 			}
 		}()
 
+		//goroutine for signaling input
+		go func() {
+			for {
+
+				select {
+				case <-quit_input:
+					return
+				default:
+					command, _ := get_key_press()
+
+					// pause/unpause
+					if command == KEY_ENTER || command == KEY_SPACE {
+						pause <- true
+					}
+
+					// skip
+					if command == KEY_RIGHT {
+						skip <- true
+					}
+
+					// restart song
+					if command == KEY_UP {
+						restart <- true
+					}
+
+					// back
+					if command == KEY_LEFT {
+						back <- true
+					}
+
+					// ctrl+c
+					if command == KEY_CTRL_C {
+						quit_program <- true
+					}
+				}
+
+			}
+		}()
+
+		// handle input signals
+	inner:
 		for {
-
-			command, err := get_key_press()
-
-			if err != nil {
-				return err
-			}
-			// fmt.Println(command)
-
-			fmt.Println()
-			if streamer.Position() == streamer.Len()-1 {
-				fmt.Println("Done")
-				break
-			}
-
-			// pause/unpause
-			if command == KEY_ENTER || command == KEY_SPACE {
+			select {
+			case <-pause:
 				speaker.Lock()
 				ctrl.Paused = !ctrl.Paused
 
-				if ctrl.Paused {
-					fmt.Println("\npaused")
-				} else {
-					fmt.Println("\nunpaused")
-				}
-
 				speaker.Unlock()
-			}
+			case <-skip:
 
-			// skip
-			if command == KEY_RIGHT {
 				fmt.Println()
 				speaker.Clear()
-				quit <- true
-				break
-			}
+				quit_input <- true
+				quit_progressbar <- true
 
-			// restart song
-			if command == KEY_UP {
+				break inner
+
+			case <-restart:
+
 				fmt.Println()
 				speaker.Clear()
 				i--
-				quit <- true
-				break
-			}
+				quit_input <- true
+				quit_progressbar <- true
 
-			// back
-			if command == KEY_LEFT {
+				break inner
+			case <-back:
 
 				fmt.Println()
 				if i != 0 {
 					speaker.Clear()
 					i--
 					i-- // two because on next iter, i will be inc'd by the outer loop
-					quit <- true
-					break
+					quit_input <- true
+					quit_progressbar <- true
+					break inner
 				}
 
-			}
+			case <-progress_bar_done:
 
-			// ctrl+c
-			if command == KEY_CTRL_C {
+				quit_input <- true
+				break inner
+			case <-quit_program:
+
 				return nil
+
 			}
 		}
+
+		// progress_bar_done := make(chan bool)
+		// // restart_loop := make(chan bool)
+		// quit_program := make(chan bool)
+		// quit_input := make(chan bool)
+
+		// pause := make(chan bool)
+		// skip := make(chan bool)
+		// back := make(chan bool)
+		// restart := make(chan bool)
+
 	}
 	fmt.Println("Done")
 
