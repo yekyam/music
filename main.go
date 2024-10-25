@@ -159,6 +159,7 @@ func play_library(library Library) error {
 	// restart_loop := make(chan bool)
 	quit_program := make(chan bool, 1)
 	quit_input := make(chan bool, 1)
+	quit_progressbar := make(chan bool, 1)
 
 	pause := make(chan bool, 1)
 	skip := make(chan bool, 1)
@@ -166,12 +167,15 @@ func play_library(library Library) error {
 	restart := make(chan bool, 1)
 
 	defer close(progress_bar_done)
+	defer close(quit_progressbar)
 	defer close(quit_program)
 	defer close(quit_input)
 	defer close(pause)
 	defer close(skip)
 	defer close(back)
 	defer close(restart)
+
+	first_run := true
 
 	for i := 0; i < len(library.Songs); i++ {
 
@@ -189,29 +193,30 @@ func play_library(library Library) error {
 		}
 		defer streamer.Close()
 
-		speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+		if first_run {
+			speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+			first_run = false
+		}
 
 		total_seconds := int64(format.SampleRate.D(streamer.Len()).Round(time.Second).Seconds())
 
 		ctrl := &beep.Ctrl{Streamer: beep.Loop(1, streamer), Paused: false}
 		speaker.Play(ctrl)
 
-		quit_progressbar := make(chan bool)
-
 		// goroutine for progress bar
 		go func() {
 			bar := progressbar.Default(total_seconds, v.Song_name)
 			for {
 
-				if bar.State().CurrentNum == bar.State().Max {
-					progress_bar_done <- true
-					return
-				}
-
 				select {
 				case <-quit_progressbar:
+					bar.Close()
 					return
 				case <-time.After(time.Second):
+					if bar.State().CurrentNum == bar.State().Max {
+						progress_bar_done <- true
+						return
+					}
 					if !ctrl.Paused {
 						bar.Add(1)
 					}
@@ -273,6 +278,7 @@ func play_library(library Library) error {
 
 				fmt.Println()
 				speaker.Clear()
+				streamer.Close()
 				quit_input <- true
 				quit_progressbar <- true
 
@@ -282,6 +288,7 @@ func play_library(library Library) error {
 
 				fmt.Println()
 				speaker.Clear()
+				streamer.Close()
 				i--
 				quit_input <- true
 				quit_progressbar <- true
@@ -291,6 +298,7 @@ func play_library(library Library) error {
 
 				if i != 0 {
 					speaker.Clear()
+					streamer.Close()
 					i--
 					i-- // two because on next iter, i will be inc'd by the outer loop
 					quit_input <- true
@@ -299,6 +307,8 @@ func play_library(library Library) error {
 				}
 
 			case <-progress_bar_done:
+				speaker.Clear()
+				streamer.Close()
 
 				quit_input <- true
 				break inner
@@ -391,6 +401,7 @@ func main() {
 	}
 
 	if *play {
+
 		err = play_library(library)
 
 		if err != nil {
