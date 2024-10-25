@@ -19,15 +19,18 @@ import (
 	"github.com/schollz/progressbar/v3"
 )
 
+// Library holds a list of songs.
 type Library struct {
 	Songs []Song `json:"songs"`
 }
 
+// Song holds a path to a file and the name of the song.
 type Song struct {
 	Path      string `json:"path"`
 	Song_name string `json:"song_name"`
 }
 
+// Constants for keyboard inputs, works on MacOS.
 const (
 	KEY_ENTER  = 13
 	KEY_SPACE  = 32
@@ -37,6 +40,7 @@ const (
 	KEY_CTRL_C = 3
 )
 
+// create_library_file creates a default JSON file at the given filename.
 func create_library_file(filename string) error {
 
 	file, err := os.Create(filename)
@@ -58,6 +62,7 @@ func create_library_file(filename string) error {
 	return nil
 }
 
+// save_library saves the given library to the given file as JSON.
 func save_library(library *Library, filename string) error {
 
 	library_json, err := json.Marshal(library)
@@ -81,9 +86,9 @@ func save_library(library *Library, filename string) error {
 	}
 
 	return nil
-
 }
 
+// load_library reads the given JSON file into a Library object.
 func load_library(filename string) (Library, error) {
 	jsonFile, err := os.Open(filename)
 
@@ -102,6 +107,7 @@ func load_library(filename string) (Library, error) {
 	return library, nil
 }
 
+// add_song adds a song object to the given library.
 func add_song(library *Library, song_name string, location string) error {
 
 	// should do some handling to download song if url
@@ -122,6 +128,8 @@ func add_song(library *Library, song_name string, location string) error {
 	return nil
 }
 
+// get_key_press grabs whatever key was pressed in the terminal's raw mode.
+// Returns the byte representation and any errors.
 func get_key_press() (byte, error) {
 	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
 	if err != nil {
@@ -138,6 +146,7 @@ func get_key_press() (byte, error) {
 	return b[0], nil
 }
 
+// play_library plays the songs in the library. Also displays a progress bar per song, and allows some user controls.
 func play_library(library Library) error {
 
 	// reader := bufio.NewReader(os.Stdin)
@@ -296,6 +305,7 @@ func play_library(library Library) error {
 			case <-quit_program:
 
 				return nil
+				// break inner
 
 			}
 		}
@@ -305,6 +315,7 @@ func play_library(library Library) error {
 	return nil
 }
 
+// get_library attempts to load the library at the filename. If the library doesn't exist, a default empty library is created.
 func get_library(filename string) (Library, error) {
 
 	library, err := load_library(filename)
