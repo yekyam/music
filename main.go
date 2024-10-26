@@ -34,10 +34,12 @@ type Song struct {
 const (
 	KEY_ENTER  = 13
 	KEY_SPACE  = 32
+	KEY_ESCAPE = 27
 	KEY_LEFT   = 68
 	KEY_UP     = 65
 	KEY_RIGHT  = 67
 	KEY_CTRL_C = 3
+	KEY_L      = 108
 )
 
 // create_library_file creates a default JSON file at the given filename.
@@ -165,6 +167,7 @@ func play_library(library Library) error {
 	skip := make(chan bool, 1)
 	back := make(chan bool, 1)
 	restart := make(chan bool, 1)
+	loop := make(chan bool, 1)
 
 	defer close(progress_bar_done)
 	defer close(quit_progressbar)
@@ -174,10 +177,34 @@ func play_library(library Library) error {
 	defer close(skip)
 	defer close(back)
 	defer close(restart)
+	defer close(loop)
+
+	const (
+		LOOP_OFF     = 0
+		LOOP_SONG    = 1
+		LOOP_LIBRARY = 2
+		LOOP_MAX     = 3
+	)
 
 	first_run := true
 
-	for i := 0; i < len(library.Songs); i++ {
+	total_songs := len(library.Songs)
+	loop_type := 0
+
+outer:
+	for i := 0; ; i++ {
+
+		switch loop_type {
+		case LOOP_OFF:
+			if i == total_songs {
+				break outer
+			}
+		case LOOP_SONG:
+			i--
+		case LOOP_LIBRARY:
+			i = i % total_songs
+
+		}
 
 		v := library.Songs[i]
 
@@ -210,7 +237,7 @@ func play_library(library Library) error {
 
 				select {
 				case <-quit_progressbar:
-					bar.Close()
+					bar.Exit()
 					return
 				case <-time.After(time.Second):
 					if bar.State().CurrentNum == bar.State().Max {
@@ -259,6 +286,11 @@ func play_library(library Library) error {
 					if command == KEY_CTRL_C {
 						quit_program <- true
 					}
+
+					if command == KEY_L {
+						loop <- true
+					}
+
 				}
 
 			}
@@ -268,6 +300,18 @@ func play_library(library Library) error {
 	inner:
 		for {
 			select {
+
+			case <-loop:
+				loop_type = (loop_type + 1) % LOOP_MAX
+				switch loop_type {
+				case LOOP_OFF:
+					fmt.Println("\n\nLoop type: OFF")
+				case LOOP_SONG:
+					fmt.Println("\n\nLoop type: SONG")
+				case LOOP_LIBRARY:
+					fmt.Println("\n\nLoop type: LIB")
+				}
+
 			case <-pause:
 
 				speaker.Lock()
