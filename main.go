@@ -153,7 +153,14 @@ func play_library(library Library) error {
 
 	// reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("Controls:\n\t-<enter or spacebar> to pause/play\n\t-<right arrow> to skip\n\t-<left arrow> to go back\n\t-<up arrow> to restart song")
+	controls := "Controls:" +
+		"\n\t-<enter or spacebar> to pause/play" +
+		"\n\t-<right arrow> to skip" +
+		"\n\t-<left arrow> to go back" +
+		"\n\t-<up arrow> to restart song" +
+		"\n\t-<L key> to switch loop modes: OFF for no loop, SONG to loop song, and LIB to loop all songs"
+
+	fmt.Println(controls)
 
 	rand.Shuffle(len(library.Songs), func(i, j int) { library.Songs[i], library.Songs[j] = library.Songs[j], library.Songs[i] })
 
