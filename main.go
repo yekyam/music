@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"golang.org/x/term"
@@ -67,6 +69,10 @@ func create_library_file(filename string) error {
 // save_library saves the given library to the given file as JSON.
 func save_library(library *Library, filename string) error {
 
+	for _, song := range library.Songs {
+		fmt.Println(song.Song_name)
+	}
+
 	library_json, err := json.Marshal(library)
 
 	if err != nil {
@@ -118,7 +124,7 @@ func add_song(library *Library, song_name string, location string) error {
 	_, _ = fmt.Println("Filename: " + filepath.Base(location))
 	wd, _ := os.Getwd()
 	new_path := wd + "/library/" + filepath.Base(location)
-	fmt.Println(new_path)
+	fmt.Println("Moved to: " + new_path)
 	err := os.Rename(location, new_path)
 
 	if err != nil {
@@ -415,10 +421,72 @@ func main() {
 	song_name := flag.String("name", "", "The name of the song to add. Must be used with the location flag")
 	song_location := flag.String("location", "", "The location of the song to add. Must be used with the name flag")
 	play := flag.Bool("play", false, "If enabled, plays the music in the library in a random order")
+	list := flag.Bool("list", false, "If passed, lists all songs in the library and exit")
+	renamme_to := flag.String("rename_to", "", "If passed, renames the song in the library specified by -name to this one")
 
 	flag.Parse()
 
-	if !*play && len(flag.Args()) == 0 {
+	if *list {
+		for _, song := range library.Songs {
+			fmt.Println("\t-" + song.Song_name)
+		}
+		os.Exit(0)
+	}
+
+	if len(*renamme_to) != 0 || len(*song_name) != 0 {
+
+		if len(*song_name) == 0 {
+			fmt.Println("Enter a song name")
+			os.Exit(1)
+		}
+
+		if len(*renamme_to) == 0 {
+			fmt.Println("Enter a song location")
+			os.Exit(1)
+		}
+
+		success := false
+		reader := bufio.NewReader(os.Stdin)
+
+		for i, song := range library.Songs {
+
+			if song.Song_name != *song_name {
+				continue
+			}
+
+			fmt.Println("Are you sure you want to rename `" + song.Song_name + "` to `" + *renamme_to + "`?")
+			line, err := reader.ReadString('\n')
+
+			if err != nil {
+				fmt.Println("Couldn't read string!")
+				os.Exit(1)
+			}
+
+			if strings.ToLower(line)[0] != 'y' {
+				continue
+			}
+
+			song.Song_name = *renamme_to
+			library.Songs[i] = song
+			err = save_library(&library, DEFAULT_PATH)
+
+			if err != nil {
+				fmt.Println("Couldn't save library while renaming!")
+				break
+			}
+			success = true
+
+		}
+
+		if !success {
+			fmt.Println("Couldn't find song: " + *song_name)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	if !*play && flag.NFlag() == 0 {
+		fmt.Println("Here")
 		flag.Usage()
 		os.Exit(1)
 	}
