@@ -1,6 +1,6 @@
 # music
 
-Simple music player command line utility.
+Simple music player command line utility. Written in Go.
 
 ## Demo
 
