@@ -2,6 +2,8 @@
 
 Simple music player command line utility.
 
+## Demo
+
 ## Features
 
 Does what it says on the label.
@@ -12,6 +14,9 @@ Does what it says on the label.
 - Repeat entire library
 - Skip
 - Pause
+- Delete
+- Rename
+- Auto download song from a link (must have yt-dlp installed)
 
 ## Pros
 
@@ -64,7 +69,7 @@ $ ./music -list
 ```
 
 ### play
-Plays all the song in the library. Displays player controls.
+Plays all the song in the library **in a random order**. Displays player controls.
 
 #### Arguments
 None
