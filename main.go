@@ -9,6 +9,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -111,23 +112,68 @@ func load_library(filename string) (Library, error) {
 	return library, nil
 }
 
-// add_song adds a song object to the given library.
-func add_song(library *Library, song_name string, location string) error {
+func add_song_from_path(library *Library, song_name string, path string) error {
 
-	// should do some handling to download song if url
-	// should also move the file to the current library
+	_, _ = fmt.Println("Filename: " + filepath.Base(path))
 
-	_, _ = fmt.Println("Filename: " + filepath.Base(location))
-	wd, _ := os.Getwd()
-	new_path := wd + "/library/" + filepath.Base(location)
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	new_path := wd + "/library/" + filepath.Base(path)
 	fmt.Println("Moved to: " + new_path)
-	err := os.Rename(location, new_path)
 
+	err = os.Rename(path, new_path)
 	if err != nil {
 		return err
 	}
 
 	library.Songs = append(library.Songs, Song{new_path, song_name})
+
+	return nil
+
+}
+
+// add_song adds a song object to the given library.
+func add_song(library *Library, song_name string, location string) error {
+
+	// should do some handling to download song if url
+	// should also move the file to the current library
+	if strings.Contains(location, "https") {
+
+		fmt.Println("trying to grab song from url, pls be patient")
+
+		new_path := "./library/" + strings.Replace(song_name, " ", "_", -1) + ".mp3"
+
+		args := []string{
+			"yt-dlp",
+			"--extract-audio",
+			"--audio-format",
+			"mp3",
+			location,
+			"-o",
+			new_path,
+		}
+		cmd := exec.Command(args[0], args[1:]...)
+		output, err := cmd.Output()
+
+		if err != nil {
+			fmt.Println(output)
+			return err
+		}
+
+		library.Songs = append(library.Songs, Song{new_path, song_name})
+
+		fmt.Println("Added `" + song_name + "` to library at file: `" + new_path + "`")
+
+	} else {
+		fmt.Println("trying to add song from file path")
+		err := add_song_from_path(library, song_name, location)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -402,7 +448,7 @@ func get_library(filename string) (Library, error) {
 	return library, nil
 }
 
-func ask_for_permsisson(message string) (bool, error) {
+func ask_for_permsission(message string) (bool, error) {
 
 	reader := bufio.NewReader(os.Stdin)
 
@@ -465,7 +511,7 @@ func handle_args(library *Library, DEFAULT_PATH string) {
 				continue
 			}
 
-			ok, err := ask_for_permsisson("Are you sure you want to rename `" + *song_name + "` to `" + *renamme_to + "`?")
+			ok, err := ask_for_permsission("Are you sure you want to rename `" + *song_name + "` to `" + *renamme_to + "`?")
 
 			if err != nil {
 				fmt.Println("Error; aborting")
@@ -541,7 +587,7 @@ func handle_args(library *Library, DEFAULT_PATH string) {
 				continue
 			}
 
-			ok, err := ask_for_permsisson("Are you sure you want to delete `" + *song_name + "` ?")
+			ok, err := ask_for_permsission("Are you sure you want to delete `" + *song_name + "` ?")
 
 			if err != nil {
 				fmt.Println("Error; aborting")
