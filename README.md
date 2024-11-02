@@ -4,6 +4,10 @@ Simple music player command line utility.
 
 ## Demo
 
+
+https://github.com/user-attachments/assets/4238eeb6-a3f3-4625-8391-460b94608298
+
+
 ## Features
 
 Does what it says on the label.
