@@ -69,10 +69,6 @@ func create_library_file(filename string) error {
 // save_library saves the given library to the given file as JSON.
 func save_library(library *Library, filename string) error {
 
-	for _, song := range library.Songs {
-		fmt.Println(song.Song_name)
-	}
-
 	library_json, err := json.Marshal(library)
 
 	if err != nil {
@@ -155,7 +151,7 @@ func get_key_press() (byte, error) {
 }
 
 // play_library plays the songs in the library. Also displays a progress bar per song, and allows some user controls.
-func play_library(library Library) error {
+func play_library(library *Library) error {
 
 	// reader := bufio.NewReader(os.Stdin)
 
@@ -406,23 +402,41 @@ func get_library(filename string) (Library, error) {
 	return library, nil
 }
 
-func main() {
-	DEFAULT_PATH := "./library/library.json"
+func ask_for_permsisson(message string) (bool, error) {
 
-	library, err := get_library(DEFAULT_PATH)
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println(message)
+	line, err := reader.ReadString('\n')
 
 	if err != nil {
-		fmt.Println("couldn't load library; " + err.Error())
-		return
+		fmt.Println("Couldn't read string!")
+		return false, err
 	}
 
-	// add_song(&library)
+	if strings.ToLower(line)[0] != 'y' {
+		return false, nil
+	}
+	return true, nil
+}
 
-	song_name := flag.String("name", "", "The name of the song to add. Must be used with the location flag")
-	song_location := flag.String("location", "", "The location of the song to add. Must be used with the name flag")
-	play := flag.Bool("play", false, "If enabled, plays the music in the library in a random order")
-	list := flag.Bool("list", false, "If passed, lists all songs in the library and exit")
-	renamme_to := flag.String("rename_to", "", "If passed, renames the song in the library specified by -name to this one")
+func handle_args(library *Library, DEFAULT_PATH string) {
+
+	// modes
+	play := flag.Bool("play", false, "Starts program in 'play' mode, "+
+		"which plays songs in library and has controls")
+	list := flag.Bool("list", false, "Starts program in 'list' mode, "+
+		"which just outputs the songs in the library and returns")
+	add := flag.Bool("add", false, "Starts program in 'add' mode, "+
+		"which adds the song (specified by '-name (name)' and '-location (filepath)') to the library and returns")
+	rename := flag.Bool("rename", false, "Starts program in 'rename' mode, "+
+		"which renames the song to a new song name (specified by '-name (name)'' and '-rename_to (new name)')")
+	delete := flag.Bool("delete", false, "Starts program in delete' mode")
+
+	// args
+	song_name := flag.String("name", "", "The `name` of the song to add. Must be used with the location flag")
+	song_location := flag.String("location", "", "The `location` of the song to add. Must be used with the name flag")
+	renamme_to := flag.String("rename_to", "", "If passed, renames the song in the library specified by -name to the `new name`")
 
 	flag.Parse()
 
@@ -431,9 +445,7 @@ func main() {
 			fmt.Println("\t-" + song.Song_name)
 		}
 		os.Exit(0)
-	}
-
-	if len(*renamme_to) != 0 || len(*song_name) != 0 {
+	} else if *rename {
 
 		if len(*song_name) == 0 {
 			fmt.Println("Enter a song name")
@@ -446,7 +458,6 @@ func main() {
 		}
 
 		success := false
-		reader := bufio.NewReader(os.Stdin)
 
 		for i, song := range library.Songs {
 
@@ -454,24 +465,23 @@ func main() {
 				continue
 			}
 
-			fmt.Println("Are you sure you want to rename `" + song.Song_name + "` to `" + *renamme_to + "`?")
-			line, err := reader.ReadString('\n')
+			ok, err := ask_for_permsisson("Are you sure you want to rename `" + *song_name + "` to `" + *renamme_to + "`?")
 
 			if err != nil {
-				fmt.Println("Couldn't read string!")
+				fmt.Println("Error; aborting")
 				os.Exit(1)
 			}
 
-			if strings.ToLower(line)[0] != 'y' {
-				continue
+			if !ok {
+				fmt.Println("Cancelled operation")
 			}
 
 			song.Song_name = *renamme_to
 			library.Songs[i] = song
-			err = save_library(&library, DEFAULT_PATH)
+			err = save_library(library, DEFAULT_PATH)
 
 			if err != nil {
-				fmt.Println("Couldn't save library while renaming!")
+				fmt.Println("Couldn't save library after renaming!")
 				break
 			}
 			success = true
@@ -483,15 +493,7 @@ func main() {
 			os.Exit(1)
 		}
 		os.Exit(0)
-	}
-
-	if !*play && flag.NFlag() == 0 {
-		fmt.Println("Here")
-		flag.Usage()
-		os.Exit(1)
-	}
-
-	if len(*song_name) != 0 || len(*song_location) != 0 {
+	} else if *add {
 
 		if len(*song_name) == 0 {
 			fmt.Println("Enter a song name")
@@ -503,30 +505,92 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = add_song(&library, *song_name, *song_location)
+		err := add_song(library, *song_name, *song_location)
 
 		if err != nil {
 			fmt.Println("error:( " + err.Error())
 			os.Exit(1)
 		}
 
-		err = save_library(&library, DEFAULT_PATH)
+		err = save_library(library, DEFAULT_PATH)
 
 		if err != nil {
 			fmt.Println("error:( " + err.Error())
 			os.Exit(1)
 		}
 
-	}
+	} else if *play {
 
-	if *play {
-
-		err = play_library(library)
+		err := play_library(library)
 
 		if err != nil {
 			fmt.Println(err.Error())
 		}
+	} else if *delete {
+
+		if len(*song_name) == 0 {
+			fmt.Println("Enter a song name")
+			os.Exit(1)
+		}
+
+		success := false
+
+		for i, song := range library.Songs {
+
+			if song.Song_name != *song_name {
+				continue
+			}
+
+			ok, err := ask_for_permsisson("Are you sure you want to delete `" + *song_name + "` ?")
+
+			if err != nil {
+				fmt.Println("Error; aborting")
+				os.Exit(1)
+			}
+
+			if !ok {
+				fmt.Println("Cancelled operation")
+			}
+
+			library.Songs = append(library.Songs[:i], library.Songs[i+1:]...)
+			err = save_library(library, DEFAULT_PATH)
+
+			if err != nil {
+				fmt.Println("Couldn't save library after renaming!")
+				break
+			}
+			success = true
+
+		}
+
+		if !success {
+			fmt.Println("Couldn't find song: " + *song_name)
+			os.Exit(1)
+		}
+		os.Exit(0)
+
+	} else {
+		fmt.Println("Here")
+		flag.Usage()
+		os.Exit(1)
+
 	}
+
+}
+
+func main() {
+	DEFAULT_PATH := "./library/library.json"
+
+	library, err := get_library(DEFAULT_PATH)
+
+	if err != nil {
+		fmt.Println("couldn't load library; " + err.Error())
+		return
+	}
+
+	// add_song(&library)
+	// modes
+	handle_args(&library, DEFAULT_PATH)
 
 	os.Exit(0)
 }
