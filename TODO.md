@@ -3,9 +3,10 @@
 - [x] Make paths generic (aka should work on other systems lol)
 - [ ] Use log module or smth
 - [ ] Make paths configurable
-- [ ] Be able to add youtube link instead of having to put file
+- [ ] Switch to actual TUI lib
+- [x] Be able to add youtube link instead of having to put file (Yipeee!)
 - [X] Rename
-- [ ] Delete List Item
-- [ ] Should make functions for dealing with flags
+- [X] Delete List Item
+- [X] Should make functions for dealing with flags
 - [x] Repeat
 - [x] Go back

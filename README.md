@@ -34,7 +34,7 @@ $ ./music -add -name "Goodbye Yellow Brick Road" -location "https://www.youtube.
 trying to grab song from url, pls be patient
 Added `Goodbye Yellow Brick Road` to library at file: `./library/Goodbye_Yellow_Brick_Road.mp3`
 ```
-
+## Modes
 ### list
 Lists all of the songs in the library, then exits
 
